@@ -1,0 +1,8 @@
+# Local snapshots / packaging
+*.zip
+
+# Runtime output (logs, certificates, archives written next to the scripts)
+afdw_logs/
+requiem-*.log
+requiem-cert-*.json
+requiem-cert-*.txt
