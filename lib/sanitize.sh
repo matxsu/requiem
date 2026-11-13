@@ -42,10 +42,11 @@ dc_san_ata_secure_ok() {
 # Build the AES-accelerated high-entropy overwrite command for $DC_DEV.
 dc_san_overwrite_random_cmd() {
   # Encrypt a zero stream with a random key → GB/s of random-looking bytes.
-  echo "sh -c 'openssl enc -aes-256-ctr -nosalt -pass pass:\"\$(head -c32 /dev/urandom|base64)\" </dev/zero 2>/dev/null | dd of=$DC_DEV bs=16M iflag=fullblock oflag=direct conv=fsync status=progress' || true"
+  # Streamed with a live progress bar (see dc_wipe_stream_with_progress in lib/common.sh).
+  echo "dc_wipe_stream_with_progress random '$DC_DEV' '${DC_SIZE_BYTES:-0}'"
 }
 dc_san_overwrite_zero_cmd() {
-  echo "dd if=/dev/zero of=$DC_DEV bs=16M oflag=direct conv=fsync status=progress || true"
+  echo "dc_wipe_stream_with_progress zero '$DC_DEV' '${DC_SIZE_BYTES:-0}'"
 }
 
 # dc_sanitize_select [requested-method]

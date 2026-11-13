@@ -93,7 +93,7 @@ pwa_human() {
 pwa_profile_exts() {
   local docs="pdf doc docx odt rtf tex txt md csv xls xlsx ods ppt pptx odp epub pages numbers key"
   local media="jpg jpeg png gif bmp tiff tif heic webp svg psd ai raw cr2 nef arw dng mp4 mov avi mkv webm m4v mp3 flac wav aac ogg m4a"
-  local keys="gpg kdbx kdb key pem ppk p12 pfx ovpn asc wallet dat seed"
+  local keys="gpg kdbx kdb key pem ppk p12 pfx ovpn asc wallet seed"
   local dev="sql json yaml yml toml ini conf cfg env sh py js ts go rs c h cpp java rb php"
   case "${1:-personal}" in
     documents) echo "$docs" ;;
@@ -188,7 +188,7 @@ pwa_scan_mount() {
   local root="$1" out="$2" d
   local -a prune=()
   # Always prune pseudo filesystems and lost+found (anchored at mount root).
-  for d in proc sys dev run lost+found; do prune+=( -path "$root/$d" -o ); done
+  for d in proc sys dev run lost+found; do prune+=( -ipath "$root/$d" -o ); done
   # Always prune universal junk/cache dirs at any depth (never worth archiving).
   local g
   for g in '*/.cache' '*/.thumbnails' '*/.local/share/Trash' '*/.Trash-*' \
@@ -197,9 +197,13 @@ pwa_scan_mount() {
   done
   if [[ "$PWA_SCAN_SYSTEM" != "1" ]]; then
     # Typical distro system directories (kept: home root media mnt srv data ...).
+    for g in '*/AppData/Local/*' '*/AppData/LocalLow/*' '*/Application Data/*'; do
+      prune+=( -iname "$g" -o )
+    done
     for d in usr bin sbin lib lib32 lib64 libx32 boot opt etc var snap cdrom \
-             'System Volume Information' '$RECYCLE.BIN'; do
-      prune+=( -path "$root/$d" -o )
+             Windows 'Program Files' 'Program Files (x86)' ProgramData Office Recovery PerfLogs \
+             'System Volume Information' '$RECYCLE.BIN' '$WinREAgent' Config.Msi; do
+      prune+=( -ipath "$root/$d" -o )
     done
   fi
   find "$root" -xdev \( "${prune[@]}" -false \) -prune -o \
@@ -391,6 +395,14 @@ pwa_run() {
 
     if pwa_copy_file "$mpoint" "$pth" "$destpart"; then
       copied=$((copied+1)); running_bytes=$(( running_bytes + sz ))
+      if [[ $(( copied % 25 )) -eq 0 || $copied -eq $total_files ]]; then
+        local pct=$(( (copied * 100) / (total_files > 0 ? total_files : 1) ))
+        local filled=$(( (copied * 28) / (total_files > 0 ? total_files : 1) ))
+        local empty=$(( 28 - filled ))
+        local bar="$(printf '%0.s█' $(seq 1 $filled 2>/dev/null))$(printf '%0.s░' $(seq 1 $empty 2>/dev/null))"
+        printf "\r   ${CYN}[%-28s]${RST} ${BLD}%3d%%${RST} | %d/%d fichiers | %s / %s   " \
+          "$bar" "$pct" "$copied" "$total_files" "$(pwa_human "$running_bytes")" "$(pwa_human "$total_bytes")"
+      fi
       if [[ "$PWA_MANIFEST" == "1" ]]; then
         local sum mt rel
         sum="$(sha256sum "$pth" 2>/dev/null | awk '{print $1}')"; sum="${sum:-NA}"
@@ -413,6 +425,7 @@ pwa_run() {
     echo "manifest  : $( [[ "$PWA_MANIFEST" == "1" ]] && echo MANIFEST.tsv || echo none )"
   } >"$setdir/ARCHIVE-SUMMARY.txt"
 
+  echo
   sync
   pwa_cleanup_mounts; rm -f "$scanfile"
 

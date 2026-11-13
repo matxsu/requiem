@@ -108,9 +108,12 @@ export AFDW_ARCHIVE_DRYRUN="$DC_DRYRUN" AFDW_RECOVER_DRYRUN="$DC_DRYRUN"
 ############################################
 #              1. IDENTIFY                 #
 ############################################
+dc_banner_start
+
 dc_step "IDENTIFY"
 dc_identify "$DEVICE"
 dc_identify_print
+[[ "${DC_SIZE_BYTES:-0}" -gt 0 ]] || dc_die "Périphérique de taille 0 octet ($DEVICE — $DC_MODEL). Vérifiez que le SSD est bien inséré dans le boîtier USB et débranchez/rebranchez-le."
 if [[ "$DC_IS_SYSTEM" == "1" && $GENIUS -ne 1 ]]; then
   dc_die "Refusing to operate on the system disk ($DEVICE). Use --genius only if you are certain."
 fi
@@ -210,5 +213,5 @@ DC_ARCHIVE_SETDIR="$(ls -1dt "$AFDW_ARCHIVE_DEST"/*_"$(basename "$DEVICE")" 2>/d
 dc_certificate || dc_warn "certificate generation had issues"
 
 echo
-dc_info "DONE. Device $DEVICE decommissioned via ${DC_SAN_METHOD}. Log: $DC_LOG"
+dc_banner_done
 [[ "${DC_VERIFY_OK:-0}" == "1" ]] && exit 0 || exit 2
